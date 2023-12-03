@@ -1,13 +1,14 @@
 # syntax=docker/dockerfile:1
 
-ARG LIBRENMS_VERSION="23.11.0"
+ARG LIBRENMS_VERSION="dev"
 ARG WEATHERMAP_PLUGIN_COMMIT="0b2ff643b65ee4948e4f74bb5cad5babdaddef27"
 ARG ALPINE_VERSION="3.17"
 
 FROM crazymax/yasu:latest AS yasu
 FROM crazymax/alpine-s6:${ALPINE_VERSION}-2.2.0.3
 COPY --from=yasu / /
-RUN apk --update --no-cache add \
+RUN sed -i 's/dl\-cdn\.alpinelinux\.org/mirrors\.aliyun\.com/g' /etc/apk/repositories \
+  && apk --update --no-cache add \
     busybox-extras \
     acl \
     bash \
@@ -62,6 +63,10 @@ RUN apk --update --no-cache add \
     php81-tokenizer \
     php81-xml \
     php81-zip \
+    php81-xdebug \
+    php81-pcntl \
+    php81-redis \
+    php81-pecl-event \
     python3 \
     py3-pip \
     rrdtool \
@@ -73,6 +78,7 @@ RUN apk --update --no-cache add \
     tzdata \
     util-linux \
     whois \
+    parallel \
   && apk --update --no-cache add -t build-dependencies \
     build-base \
     make \
@@ -116,8 +122,8 @@ RUN apk --update --no-cache add -t build-dependencies \
     linux-headers \
     musl-dev \
     python3-dev \
-  && echo "Installing LibreNMS https://github.com/librenms/librenms.git#${LIBRENMS_VERSION}..." \
-  && git clone --depth=1 --branch ${LIBRENMS_VERSION} https://github.com/librenms/librenms.git . \
+  && echo "Installing LibreNMS https://github.com/jianglinchun/librenms.git#${LIBRENMS_VERSION}..." \
+  && git clone --depth=1 --branch ${LIBRENMS_VERSION} https://github.com/jianglinchun/librenms.git . \
   && pip3 install --ignore-installed -r requirements.txt --upgrade \
   && COMPOSER_CACHE_DIR="/tmp" composer install --no-dev --no-interaction --no-ansi \
   && mkdir config.d \
@@ -143,7 +149,7 @@ RUN apk --update --no-cache add -t build-dependencies \
 
 COPY rootfs /
 
-EXPOSE 8000 514 514/udp 162 162/udp
+EXPOSE 8000 514 514/udp 162 162/udp 666/udp
 VOLUME [ "/data" ]
 
 ENTRYPOINT [ "/init" ]

@@ -8,8 +8,10 @@ mkdir -p /data \
   /var/run/php-fpm
 chown librenms:librenms \
   /data \
-  "${LIBRENMS_PATH}" \
-  "${LIBRENMS_PATH}/.env"
+  "${LIBRENMS_PATH}"
+if [ -f "${LIBRENMS_PATH}/.env" ]; then
+  chown librenms:librenms "${LIBRENMS_PATH}/.env"
+fi
 chown -R librenms:librenms \
   /home/librenms \
   /tpls \

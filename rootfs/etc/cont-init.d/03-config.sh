@@ -76,6 +76,10 @@ echo "Setting OpCache configuration..."
 sed -e "s/@OPCACHE_MEM_SIZE@/$OPCACHE_MEM_SIZE/g" \
   /tpls/etc/php81/conf.d/opcache.ini >/etc/php81/conf.d/opcache.ini
 
+# XDebug (TODO 参数化/环境变换量化调试开关，Host和Port)
+echo "Setting Xdebug configuration..."
+cat /tpls/etc/php81/conf.d/xdebug.ini >/etc/php81/conf.d/50_xdebug.ini
+
 # Nginx
 echo "Setting Nginx configuration..."
 sed -e "s#@UPLOAD_MAX_SIZE@#$UPLOAD_MAX_SIZE#g" \
@@ -120,6 +124,37 @@ mkdir -p /etc/logrotate.d
 touch /etc/logrotate.d/librenms
 
 echo "Setting LibreNMS configuration..."
+
+# Composer file
+if [ ! -d ${LIBRENMS_PATH}/vendor ]; then
+  echo 'Initializing LibreNMS vendor directory ....'
+  COMPOSER_CACHE_DIR="/tmp" composer install --no-dev --no-interaction --no-ansi
+fi
+# fix locale problem
+if [ -f vendor/laravel/framework/src/Illuminate/Foundation/helpers.php ]; then
+  sed -i 's/return trans($key, $replace, $locale);/$trans = trans($key, $replace, $locale);\n\t\treturn is_array($trans) ? $key : $trans;/' vendor/laravel/framework/src/Illuminate/Foundation/helpers.php
+fi
+# fix cpd100 trap problem
+if [ -f vendor/freedsx/snmp/src/FreeDSx/Snmp/Request/TrapTrait.php ]; then
+  if [ $(cat vendor/freedsx/snmp/src/FreeDSx/Snmp/Request/TrapTrait.php|grep second|wc -l) -gt 0 ]; then
+    sed -i '92d' vendor/freedsx/snmp/src/FreeDSx/Snmp/Request/TrapTrait.php
+    sed -i '91a\
+            \$trapRequest = new self(\
+              \$sysUpTime->getValue(),\
+              new OidValue($trapOid->getOid()),\
+              new OidList($oidList->last())\
+            );\
+            \$trapRequest->id = $id;\
+            \$trapRequest->errorStatus = $errorStatus;\
+            \$trapRequest->errorIndex = $errorIndex;\
+            return \$trapRequest;' vendor/freedsx/snmp/src/FreeDSx/Snmp/Request/TrapTrait.php
+  fi
+fi
+# fix parallel first run promotion
+# https://stackoverflow.com/questions/61762189/installing-gnu-parallel-how-to-enter-will-cite-from-docker-build
+# yes 'will cite' | parallel --citation
+echo 'will cite' | parallel --citation || true
+# touch ~/.parallel/will-cite
 
 # Env file
 if [ -z "$DB_HOST" ]; then
@@ -172,6 +207,12 @@ ipmitool: /usr/sbin/ipmitool
 EOL
 
 # Config : Disable autoupdate (set in config.php so it cannot be overridden in the webui)
+if [ ! -d ${LIBRENMS_PATH}/config.d/ ]; then
+  mkdir ${LIBRENMS_PATH}/config.d/
+fi
+if [ ! -f ${LIBRENMS_PATH}/config.d/autoupdate.php ]; then
+  touch ${LIBRENMS_PATH}/config.d/autoupdate.php
+fi
 cat >${LIBRENMS_PATH}/config.d/autoupdate.php <<EOL
 <?php
 \$config['update'] = 0;

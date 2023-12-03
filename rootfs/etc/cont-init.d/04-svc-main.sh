@@ -110,3 +110,11 @@ with-contenv
 /usr/sbin/snmpd -f -c /etc/snmp/snmpd.conf
 EOL
 chmod +x /etc/services.d/snmpd/run
+
+mkdir -p /etc/services.d/snmp-worker
+cat >/etc/services.d/snmp-worker/run <<EOL
+#!/usr/bin/execlineb -P
+with-contenv
+lnms snmp:worker start
+EOL
+chmod +x /etc/services.d/snmp-worker/run

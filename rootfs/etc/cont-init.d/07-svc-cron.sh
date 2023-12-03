@@ -32,6 +32,7 @@ fi
 
 echo "Creating LibreNMS cron artisan schedule:run"
 echo "* * * * * php /opt/librenms/artisan schedule:run --no-ansi --no-interaction > /dev/null 2>&1" >>${CRONTAB_PATH}/librenms
+echo "*/2 * * * * /opt/librenms/cronic /opt/librenms/poller-wrapper.py 16" >>${CRONTAB_PATH}/librenms
 
 # Fix perms
 echo "Fixing crontabs permissions..."
